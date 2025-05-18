@@ -4,15 +4,18 @@ import { PaperProvider } from 'react-native-paper';
 import { AppProvider } from './context/AppContext';
 import Navigation from './navigation';
 import theme from './utils/theme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function App() {
   return (
-    // <PaperProvider theme={theme}>
-    <AppProvider>
-      <Navigation />
-      <StatusBar style="light" />
-    </AppProvider>
-    // </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={theme}>
+        <AppProvider>
+          <Navigation />
+          <StatusBar style="light" />
+        </AppProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
 
