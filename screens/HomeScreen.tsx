@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, SafeAreaView, Platform } from 'react-native';
 import { Text, useTheme, Surface, Divider } from 'react-native-paper';
 import { colors } from '../utils/theme';
@@ -8,10 +8,12 @@ import { RootStackParamList } from '../types';
 import { useAppContext } from '../context/AppContext';
 import StatsCard from '../components/StatsCard';
 import ActionButton from '../components/ActionButton';
+import LocationDemo from './LocationDemo';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen = () => {
+  const [showLocationDemo, setShowLocationDemo] = useState(false);
   const theme = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
@@ -140,7 +142,19 @@ const HomeScreen = () => {
             onPress={() => navigation.navigate('Reminders')}
             color={colors.primary}
           />
+          <ActionButton
+            label="Location Demo"
+            icon="map-marker"
+            onPress={() => setShowLocationDemo(!showLocationDemo)}
+            color={colors.accent}
+          />
         </View>
+
+        {showLocationDemo && (
+          <View style={styles.locationDemoContainer}>
+            <LocationDemo />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -188,6 +202,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   actionsContainer: {
+    marginBottom: 24,
+  },
+  locationDemoContainer: {
     marginBottom: 24,
   },
 });

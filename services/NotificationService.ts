@@ -11,6 +11,16 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Set up notification response handler (when user taps notification)
+Notifications.addNotificationResponseReceivedListener((response) => {
+  const data = response.notification.request.content.data;
+  console.log('Notification tapped:', data);
+  
+  // The app will automatically navigate to the appropriate screen
+  // based on the notification data in the navigation container
+  // No need to manually navigate here
+});
+
 // Notification channel for Android
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('ride-tracking', {

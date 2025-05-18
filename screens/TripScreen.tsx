@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, SafeAreaView, Alert } from 'react-native';
+import { StyleSheet, View, SafeAreaView, Alert, AppState, AppStateStatus } from 'react-native';
 import { Text, Card, useTheme, TextInput, Portal, Dialog, IconButton } from 'react-native-paper';
 import { useAppContext } from '../context/AppContext';
 import ActionButton from '../components/ActionButton';
@@ -7,8 +7,10 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TripLocation } from '../types';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import NotificationService from '../services/NotificationService';
+import * as Notifications from 'expo-notifications';
+import { getAddressFromCoordinates, formatAddress } from '../utils/LocationUtils';
 
 const LOCATION_TRACKING = 'location-tracking';
 
@@ -64,37 +66,121 @@ const TripScreen = () => {
   const [manualDistance, setManualDistance] = useState('');
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   // Refs for tracking
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const lastLocation = useRef<Location.LocationObject | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Request location and notification permissions
+  // Handle app state changes (foreground/background)
   useEffect(() => {
-    const requestPermissions = async () => {
-      // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied',
-          'BikeMate needs location permissions to track your rides.',
-          [{ text: 'OK' }]
-        );
-        return;
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+  
+  // Handle app state changes
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      console.log('App has come to the foreground!');
+      // Check if we have an active trip when returning to foreground
+      checkForActiveTrip();
+    }
+    appState.current = nextAppState;
+  };
+  
+  // Check if there's an active trip when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('TripScreen focused');
+      checkForActiveTrip();
+      return () => {};
+    }, [])
+  );
+  
+  // Check for active trip in AsyncStorage
+  const checkForActiveTrip = async () => {
+    try {
+      const activeTripData = await AsyncStorage.getItem('activeTrip');
+      if (activeTripData) {
+        console.log('Found active trip in storage');
+        const trip = JSON.parse(activeTripData);
+        
+        // Update UI with trip data
+        if (trip.distance) setDistance(trip.distance);
+        
+        if (trip.startTime) {
+          const startTime = new Date(trip.startTime).getTime();
+          const currentTime = new Date().getTime();
+          const currentDuration = Math.floor((currentTime - startTime) / 1000);
+          setDuration(currentDuration);
+        }
       }
-
-      const backgroundPermission = await Location.requestBackgroundPermissionsAsync();
-      setLocationPermission(status === 'granted');
-      
-      // Request notification permissions
-      const notificationPermission = await NotificationService.requestPermissions();
-      if (!notificationPermission) {
-        console.log('Notification permissions not granted');
+    } catch (error) {
+      console.error('Error checking for active trip:', error);
+    }
+  };
+  
+  // Check and request location and notification permissions
+  useEffect(() => {
+    const checkAndRequestPermissions = async () => {
+      try {
+        // First check if permissions are already granted
+        const { status: foregroundStatus } = await Location.getForegroundPermissionsAsync();
+        
+        if (foregroundStatus === 'granted') {
+          console.log('Foreground location permission already granted');
+          setLocationPermission(true);
+          
+          // Check background permission too
+          const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+          console.log('Background permission status:', backgroundStatus);
+          
+          // Request notification permissions
+          const notificationPermission = await NotificationService.requestPermissions();
+          if (!notificationPermission) {
+            console.log('Notification permissions not granted');
+          }
+          
+          return; // Exit early if permissions already granted
+        }
+        
+        // If not granted, request permissions
+        console.log('Requesting location permissions...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Denied',
+            'BikeMate needs location permissions to track your rides.',
+            [{ text: 'OK' }]
+          );
+          setLocationPermission(false);
+          return;
+        }
+        
+        // Request background permissions
+        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+        console.log('Background permission granted:', backgroundStatus === 'granted');
+        
+        // Update permission state
+        setLocationPermission(status === 'granted');
+        
+        // Request notification permissions
+        const notificationPermission = await NotificationService.requestPermissions();
+        if (!notificationPermission) {
+          console.log('Notification permissions not granted');
+        }
+      } catch (error) {
+        console.error('Error checking/requesting permissions:', error);
+        Alert.alert('Error', 'Failed to request location permissions. Please try again.');
       }
     };
 
-    requestPermissions();
+    checkAndRequestPermissions();
 
     return () => {
       // Clean up on unmount
@@ -107,18 +193,17 @@ const TripScreen = () => {
     };
   }, []);
 
-  // Start or resume tracking when activeTrip changes
   useEffect(() => {
     // Store the current trip ID to avoid stale closures in the interval
     const currentTripId = activeTrip?.id;
-    
+
     if (activeTrip && locationPermission) {
       console.log('Starting location tracking for trip:', currentTripId);
       startLocationTracking();
-      
+
       // Initialize UI state from activeTrip
       if (activeTrip.distance) setDistance(activeTrip.distance);
-      
+
       // Calculate current duration
       if (activeTrip.startTime) {
         const startTime = new Date(activeTrip.startTime).getTime();
@@ -126,10 +211,10 @@ const TripScreen = () => {
         const currentDuration = Math.floor((currentTime - startTime) / 1000);
         setDuration(currentDuration);
       }
-      
+
       // Show notification for ride in progress
       NotificationService.showRideProgressNotification(activeTrip);
-      
+
       // Set up notification update interval
       const notificationInterval = setInterval(() => {
         // Use AsyncStorage to get the latest trip data to avoid stale closure issues
@@ -142,14 +227,14 @@ const TripScreen = () => {
           }
         }).catch(err => console.error('Error updating notification:', err));
       }, 30000); // Update every 30 seconds
-      
+
       return () => {
         console.log('Cleaning up tracking for trip:', currentTripId);
         clearInterval(notificationInterval);
       };
     } else {
       stopLocationTracking();
-      
+
       // Dismiss notification when trip is stopped
       NotificationService.dismissRideProgressNotification();
     }
@@ -161,9 +246,9 @@ const TripScreen = () => {
       console.log('Location tracking already active, not starting again');
       return;
     }
-    
+
     console.log('Starting location tracking');
-    
+
     // Start location updates
     const locationOptions: Location.LocationOptions = {
       accuracy: Location.Accuracy.Highest,
@@ -178,7 +263,7 @@ const TripScreen = () => {
           updateLocationData(location);
         }
       );
-      
+
       // Start a timer to update duration
       if (timerRef.current === null) {
         timerRef.current = setInterval(() => {
@@ -216,10 +301,10 @@ const TripScreen = () => {
     // Get the latest trip data from AsyncStorage to avoid stale data
     AsyncStorage.getItem('activeTrip').then(tripData => {
       if (!tripData) return;
-      
+
       const currentTrip = JSON.parse(tripData);
       if (!currentTrip || !currentTrip.isActive) return;
-      
+
       // Create a TripLocation object
       const tripLocation: TripLocation = {
         latitude: location.coords.latitude,
@@ -228,10 +313,10 @@ const TripScreen = () => {
         speed: location.coords.speed !== null ? location.coords.speed : 0,
         altitude: location.coords.altitude !== null ? location.coords.altitude : undefined
       };
-      
+
       // Add to locations array in active trip
       const updatedLocations = [...(currentTrip.locations || []), tripLocation];
-      
+
       if (lastLocation.current) {
         // Calculate distance between last location and current location
         const lastCoords = lastLocation.current.coords;
@@ -248,18 +333,18 @@ const TripScreen = () => {
         const distanceInKm = distanceInMeters / 1000;
         // Calculate new total distance
         const newDistance = currentTrip.distance + distanceInKm;
-        
+
         // Calculate average speed from all locations with speed data
         let totalSpeed = 0;
         let speedPoints = 0;
-        
+
         updatedLocations.forEach(loc => {
           if (loc.speed && loc.speed > 0) {
             totalSpeed += loc.speed * 3.6; // Convert m/s to km/h
             speedPoints++;
           }
         });
-        
+
         const avgSpeed = speedPoints > 0 ? totalSpeed / speedPoints : 0;
 
         // Update active trip in context and AsyncStorage
@@ -269,10 +354,10 @@ const TripScreen = () => {
           avgSpeed: avgSpeed,
           duration: duration // Make sure duration is also updated
         };
-        
+
         // Use the updateActiveTrip from context to update both state and AsyncStorage
         updateActiveTrip(updatedTripData);
-        
+
         // Update notification if significant change (every 0.1 km)
         if (Math.floor(newDistance * 10) > Math.floor((newDistance - distanceInKm) * 10)) {
           NotificationService.updateRideProgressNotification({
@@ -308,6 +393,18 @@ const TripScreen = () => {
     return R * c; // Distance in meters
   };
 
+  const handleAddManualTrip = async () => {
+    const distanceValue = parseFloat(manualDistance);
+    if (isNaN(distanceValue) || distanceValue <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid distance.');
+      return;
+    }
+
+    await addManualTrip(distanceValue);
+    setManualDistance('');
+    setShowManualDialog(false);
+  };
+
   const handleStartTrip = async () => {
     if (!locationPermission) {
       Alert.alert(
@@ -319,8 +416,30 @@ const TripScreen = () => {
     }
 
     try {
-      // Start the trip in the context (which now saves to AsyncStorage)
-      await startTrip();
+      // Get current location for start position
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest
+      });
+      
+      // Get address for the start location
+      const addressResult = await getAddressFromCoordinates(
+        currentLocation.coords.latitude,
+        currentLocation.coords.longitude
+      );
+      
+      const startLocationData = {
+        startLocation: {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude
+        },
+        startAddress: addressResult.success && addressResult.address ? 
+          formatAddress(addressResult.address) : undefined
+      };
+      
+      console.log('Start location:', startLocationData);
+      
+      // Start the trip in the context with the start location data
+      await startTrip(startLocationData);
       console.log('Trip started and saved to local storage');
 
       // Reset local state
@@ -336,13 +455,35 @@ const TripScreen = () => {
 
   const handleStopTrip = async () => {
     try {
-      // Stop the trip in the context (which now saves to AsyncStorage)
-      await stopTrip();
-      console.log('Trip stopped and saved to local storage');
+      // Get current location for end position
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest
+      });
       
+      // Get address for the end location
+      const addressResult = await getAddressFromCoordinates(
+        currentLocation.coords.latitude,
+        currentLocation.coords.longitude
+      );
+      
+      const endLocationData = {
+        endLocation: {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude
+        },
+        endAddress: addressResult.success && addressResult.address ? 
+          formatAddress(addressResult.address) : undefined
+      };
+      
+      console.log('End location:', endLocationData);
+      
+      // Stop the trip in the context with the end location data
+      await stopTrip(endLocationData);
+      console.log('Trip stopped and saved to local storage');
+
       // Dismiss the notification
       await NotificationService.dismissRideProgressNotification();
-      
+
       // Reset local state
       setDistance(0);
       setDuration(0);
@@ -352,18 +493,6 @@ const TripScreen = () => {
       console.error('Error stopping trip:', error);
       Alert.alert('Error', 'Failed to save trip data. Please try again.');
     }
-  };
-
-  const handleAddManualTrip = async () => {
-    const distanceValue = parseFloat(manualDistance);
-    if (isNaN(distanceValue) || distanceValue <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid distance.');
-      return;
-    }
-
-    await addManualTrip(distanceValue);
-    setManualDistance('');
-    setShowManualDialog(false);
   };
 
   const formatDuration = (seconds: number) => {
@@ -384,9 +513,9 @@ const TripScreen = () => {
             <Text variant="headlineMedium" style={styles.title}>
               {activeTrip ? 'Ride in Progress' : 'Start a New Ride'}
             </Text>
-            <IconButton 
-              icon="history" 
-              size={24} 
+            <IconButton
+              icon="history"
+              size={24}
               onPress={() => navigation.navigate('TripHistory' as never)}
               iconColor={theme.colors.primary}
               style={{ margin: 0 }}

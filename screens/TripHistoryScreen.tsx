@@ -108,6 +108,35 @@ const TripHistoryScreen = () => {
         </View>
       </View>
       
+      {/* Location information */}
+      {(item.startAddress || item.endAddress) && (
+        <View style={styles.locationContainer}>
+          {item.startAddress && (
+            <View style={styles.locationItem}>
+              <View style={styles.locationIconContainer}>
+                <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.primary} />
+                <Text variant="labelSmall" style={styles.locationLabel}>Start</Text>
+              </View>
+              <Text variant="bodySmall" style={styles.locationText} numberOfLines={2}>
+                {item.startAddress}
+              </Text>
+            </View>
+          )}
+          
+          {item.endAddress && (
+            <View style={styles.locationItem}>
+              <View style={styles.locationIconContainer}>
+                <MaterialCommunityIcons name="flag-checkered" size={16} color={theme.colors.primary} />
+                <Text variant="labelSmall" style={styles.locationLabel}>End</Text>
+              </View>
+              <Text variant="bodySmall" style={styles.locationText} numberOfLines={2}>
+                {item.endAddress}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+      
       <Divider style={{ marginVertical: 8 }} />
       
       <View style={styles.tripStats}>
@@ -248,6 +277,29 @@ const styles = StyleSheet.create({
   tripActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  locationContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 4,
+  },
+  locationIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+    minWidth: 60,
+  },
+  locationLabel: {
+    marginLeft: 4,
+    fontWeight: '600',
+  },
+  locationText: {
+    flex: 1,
+    opacity: 0.8,
   },
   tripStats: {
     flexDirection: 'row',

@@ -11,8 +11,14 @@ interface AppContextType {
   activeTrip: Trip | null;
   
   // Trip functions
-  startTrip: () => Promise<void>;
-  stopTrip: () => Promise<void>;
+  startTrip: (locationData?: {
+    startLocation?: { latitude: number; longitude: number };
+    startAddress?: string;
+  }) => Promise<void>;
+  stopTrip: (locationData?: {
+    endLocation?: { latitude: number; longitude: number };
+    endAddress?: string;
+  }) => Promise<void>;
   updateActiveTrip: (tripUpdate: Partial<Trip>) => Promise<void>;
   addManualTrip: (distance: number) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
@@ -125,7 +131,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Trip functions
-  const startTrip = async () => {
+  const startTrip = async (locationData?: {
+    startLocation?: { latitude: number; longitude: number };
+    startAddress?: string;
+  }) => {
     if (activeTrip) return; // Don't start if there's already an active trip
     
     const newTrip: Trip = {
@@ -136,6 +145,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isActive: true,
       locations: [], // Store location history for the trip
       avgSpeed: 0,
+      // Add location data if provided
+      startLocation: locationData?.startLocation,
+      startAddress: locationData?.startAddress,
     };
     
     setActiveTrip(newTrip);
@@ -149,7 +161,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const stopTrip = async () => {
+  const stopTrip = async (locationData?: {
+    endLocation?: { latitude: number; longitude: number };
+    endAddress?: string;
+  }) => {
     if (!activeTrip) return;
     
     const endTime = new Date().toISOString();
@@ -157,6 +172,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...activeTrip,
       endTime,
       isActive: false,
+      // Add end location data if provided
+      endLocation: locationData?.endLocation,
+      endAddress: locationData?.endAddress,
     };
     
     // Update total distance
