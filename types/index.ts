@@ -1,3 +1,11 @@
+export interface TripLocation {
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  speed?: number;
+  altitude?: number;
+}
+
 export interface Trip {
   id: string;
   startTime: string;
@@ -5,6 +13,8 @@ export interface Trip {
   distance: number; // in kilometers
   duration: number; // in seconds
   isActive: boolean;
+  locations?: TripLocation[]; // Store location history
+  avgSpeed?: number; // Average speed in km/h
 }
 
 export interface FuelEntry {
@@ -19,7 +29,7 @@ export interface Reminder {
   id: string;
   title: string;
   description?: string;
-  triggerType: 'distance' | 'date' | 'both';
+  triggerType: "distance" | "date" | "both";
   triggerDistance?: number; // in kilometers
   triggerDate?: string;
   isActive: boolean;
@@ -35,6 +45,7 @@ export interface UserStats {
 export type RootStackParamList = {
   Home: undefined;
   Trip: undefined;
+  TripHistory: undefined;
   Mileage: undefined;
   Reminders: undefined;
   AddReminder: { reminder?: Reminder };

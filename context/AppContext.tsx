@@ -13,10 +13,13 @@ interface AppContextType {
   // Trip functions
   startTrip: () => Promise<void>;
   stopTrip: () => Promise<void>;
+  updateActiveTrip: (tripUpdate: Partial<Trip>) => Promise<void>;
   addManualTrip: (distance: number) => Promise<void>;
+  deleteTrip: (id: string) => Promise<void>;
   
   // Fuel entry functions
   addFuelEntry: (fuelQuantity: number, distance: number) => Promise<void>;
+  deleteFuelEntry: (id: string) => Promise<void>;
   
   // Reminder functions
   addReminder: (reminder: Omit<Reminder, 'id'>) => Promise<void>;
@@ -91,18 +94,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await AsyncStorage.setItem('fuelEntries', JSON.stringify(fuelEntries));
         await AsyncStorage.setItem('reminders', JSON.stringify(reminders));
         await AsyncStorage.setItem('userStats', JSON.stringify(userStats));
-        if (activeTrip) {
-          await AsyncStorage.setItem('activeTrip', JSON.stringify(activeTrip));
-        } else {
-          await AsyncStorage.removeItem('activeTrip');
-        }
+        
+        // Active trip is now handled separately in startTrip/stopTrip/updateActiveTrip
+        // for more immediate synchronization
       } catch (error) {
         console.error('Error saving data to storage:', error);
       }
     };
 
     saveData();
-  }, [trips, fuelEntries, reminders, userStats, activeTrip]);
+  }, [trips, fuelEntries, reminders, userStats]);
+  
+  // Add a function to update the active trip (for location updates)
+  const updateActiveTrip = async (tripUpdate: Partial<Trip>) => {
+    if (!activeTrip) return;
+    
+    const updatedTrip = {
+      ...activeTrip,
+      ...tripUpdate,
+    };
+    
+    setActiveTrip(updatedTrip);
+    
+    // Immediately sync to AsyncStorage
+    try {
+      await AsyncStorage.setItem('activeTrip', JSON.stringify(updatedTrip));
+    } catch (error) {
+      console.error('Error updating active trip in storage:', error);
+    }
+  };
 
   // Trip functions
   const startTrip = async () => {
@@ -114,9 +134,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       distance: 0,
       duration: 0,
       isActive: true,
+      locations: [], // Store location history for the trip
+      avgSpeed: 0,
     };
     
     setActiveTrip(newTrip);
+    
+    // Immediately save to AsyncStorage
+    try {
+      await AsyncStorage.setItem('activeTrip', JSON.stringify(newTrip));
+      console.log('Active trip saved to storage');
+    } catch (error) {
+      console.error('Error saving active trip to storage:', error);
+    }
   };
 
   const stopTrip = async () => {
@@ -138,7 +168,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Add to trips list
     setTrips(prev => [...prev, updatedTrip]);
+    
+    // Clear active trip
     setActiveTrip(null);
+    
+    // Immediately remove activeTrip from AsyncStorage
+    try {
+      await AsyncStorage.removeItem('activeTrip');
+      console.log('Active trip removed from storage');
+      
+      // Save the completed trip to history
+      const tripsData = await AsyncStorage.getItem('trips');
+      const existingTrips = tripsData ? JSON.parse(tripsData) : [];
+      const updatedTrips = [...existingTrips, updatedTrip];
+      await AsyncStorage.setItem('trips', JSON.stringify(updatedTrips));
+      console.log('Trip history updated in storage');
+    } catch (error) {
+      console.error('Error updating trip data in storage:', error);
+    }
   };
 
   const addManualTrip = async (distance: number) => {
@@ -163,6 +210,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Add to trips list
     setTrips(prev => [...prev, newTrip]);
   };
+  
+  // Delete a trip
+  const deleteTrip = async (id: string) => {
+    try {
+      // Find the trip to delete
+      const tripToDelete = trips.find(trip => trip.id === id);
+      if (!tripToDelete) return;
+      
+      // Update total distance (subtract the deleted trip's distance)
+      setUserStats(prev => {
+        const updatedTotalDistance = prev.totalDistance - tripToDelete.distance;
+        
+        // Check if the trip is from today to update today's distance
+        const tripDate = new Date(tripToDelete.startTime).toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0];
+        const updatedTodayDistance = tripDate === today ? 
+          prev.todayDistance - tripToDelete.distance : 
+          prev.todayDistance;
+        
+        return {
+          ...prev,
+          totalDistance: updatedTotalDistance >= 0 ? updatedTotalDistance : 0,
+          todayDistance: updatedTodayDistance >= 0 ? updatedTodayDistance : 0,
+        };
+      });
+      
+      // Remove from trips list
+      const updatedTrips = trips.filter(trip => trip.id !== id);
+      setTrips(updatedTrips);
+      
+      // Update AsyncStorage
+      await AsyncStorage.setItem('trips', JSON.stringify(updatedTrips));
+      console.log('Trip deleted successfully');
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+    }
+  };
 
   // Fuel entry functions
   const addFuelEntry = async (fuelQuantity: number, distance: number) => {
@@ -184,6 +268,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Add to fuel entries list
     setFuelEntries(prev => [...prev, newEntry]);
+  };
+  
+  // Delete a fuel entry
+  const deleteFuelEntry = async (id: string) => {
+    try {
+      // Find the entry to delete
+      const entryToDelete = fuelEntries.find(entry => entry.id === id);
+      if (!entryToDelete) return;
+      
+      // Check if this is the last entry and update stats if needed
+      const updatedEntries = fuelEntries.filter(entry => entry.id !== id);
+      
+      // If we deleted the most recent entry, update lastMileage to the previous entry's mileage
+      if (updatedEntries.length > 0 && entryToDelete.mileage === userStats.lastMileage) {
+        // Sort entries by date (newest first)
+        const sortedEntries = [...updatedEntries].sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        
+        // Update lastMileage to the most recent entry
+        if (sortedEntries[0]) {
+          setUserStats(prev => ({
+            ...prev,
+            lastMileage: sortedEntries[0].mileage,
+          }));
+        }
+      } else if (updatedEntries.length === 0) {
+        // If no entries left, reset lastMileage to 0
+        setUserStats(prev => ({
+          ...prev,
+          lastMileage: 0,
+        }));
+      }
+      
+      // Update state
+      setFuelEntries(updatedEntries);
+      
+      // Update AsyncStorage
+      await AsyncStorage.setItem('fuelEntries', JSON.stringify(updatedEntries));
+      console.log('Fuel entry deleted successfully');
+    } catch (error) {
+      console.error('Error deleting fuel entry:', error);
+    }
   };
 
   // Reminder functions
@@ -224,8 +351,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTrip,
         startTrip,
         stopTrip,
+        updateActiveTrip,
         addManualTrip,
+        deleteTrip,
         addFuelEntry,
+        deleteFuelEntry,
         addReminder,
         updateReminder,
         deleteReminder,

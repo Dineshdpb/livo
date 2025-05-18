@@ -6,6 +6,7 @@ import { RootStackParamList } from '../types';
 // Import screens (we'll create these next)
 import HomeScreen from '../screens/HomeScreen';
 import TripScreen from '../screens/TripScreen';
+import TripHistoryScreen from '../screens/TripHistoryScreen';
 import MileageScreen from '../screens/MileageScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import AddReminderScreen from '../screens/AddReminderScreen';
@@ -40,6 +41,11 @@ export default function Navigation() {
           name="Trip" 
           component={TripScreen} 
           options={{ title: 'Track Trip' }} 
+        />
+        <Stack.Screen 
+          name="TripHistory" 
+          component={TripHistoryScreen} 
+          options={{ title: 'Trip History' }} 
         />
         <Stack.Screen 
           name="Mileage" 

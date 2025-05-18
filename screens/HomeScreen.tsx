@@ -121,6 +121,13 @@ const HomeScreen = () => {
             color={colors.primary}
           />
           <ActionButton
+            label="Trip History"
+            icon="history"
+            onPress={() => navigation.navigate('TripHistory')}
+            mode="contained"
+            color={colors.accent}
+          />
+          <ActionButton
             label="Add Fuel Log"
             icon="gas-station"
             onPress={() => navigation.navigate('Mileage')}
@@ -131,7 +138,6 @@ const HomeScreen = () => {
             label="Manage Reminders"
             icon="bell-outline"
             onPress={() => navigation.navigate('Reminders')}
-            // 
             color={colors.primary}
           />
         </View>

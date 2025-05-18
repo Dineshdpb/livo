@@ -1,17 +1,50 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, SafeAreaView, Dimensions } from 'react-native';
-import { Text, Card, useTheme, TextInput } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, SafeAreaView, Dimensions, Alert } from 'react-native';
+import { Text, Card, useTheme, TextInput, IconButton, Menu, Portal, Dialog } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import { useAppContext } from '../context/AppContext';
 import ActionButton from '../components/ActionButton';
 
 const MileageScreen = () => {
   const theme = useTheme();
-  const { fuelEntries, addFuelEntry } = useAppContext();
+  const { fuelEntries, addFuelEntry, deleteFuelEntry } = useAppContext();
   const [fuelQuantity, setFuelQuantity] = useState('');
   const [distance, setDistance] = useState('');
   const [error, setError] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
+  // Open menu for a specific entry
+  const openMenu = (id: string, event: any) => {
+    // Get the position from the event
+    const { pageX, pageY } = event.nativeEvent;
+    setMenuPosition({ x: pageX, y: pageY });
+    setSelectedEntryId(id);
+    setMenuVisible(true);
+  };
+  
+  // Close menu
+  const closeMenu = () => {
+    setMenuVisible(false);
+  };
+
+  // Show delete confirmation dialog
+  const showDeleteDialog = () => {
+    closeMenu();
+    setDeleteDialogVisible(true);
+  };
+  
+  // Handle delete fuel entry confirmation
+  const handleDeleteEntry = async () => {
+    if (selectedEntryId) {
+      await deleteFuelEntry(selectedEntryId);
+      setDeleteDialogVisible(false);
+      setSelectedEntryId(null);
+    }
+  };
+  
   const handleAddEntry = () => {
     // Validate inputs
     const fuelValue = parseFloat(fuelQuantity);
@@ -79,7 +112,42 @@ const MileageScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Global Menu */}
+      <Menu
+        visible={menuVisible}
+        onDismiss={closeMenu}
+        anchor={menuPosition}
+        contentStyle={{ backgroundColor: theme.colors.surface }}
+      >
+        <Menu.Item 
+          onPress={showDeleteDialog} 
+          title="Delete"
+          leadingIcon="delete"
+        />
+      </Menu>
+      
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Delete Confirmation Dialog */}
+        <Portal>
+          <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
+            <Dialog.Title>Delete Fuel Entry</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">Are you sure you want to delete this fuel entry? This action cannot be undone.</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <ActionButton
+                label="Cancel"
+                onPress={() => setDeleteDialogVisible(false)}
+                mode="text"
+              />
+              <ActionButton
+                label="Delete"
+                onPress={handleDeleteEntry}
+                color="#dc3545"
+              />
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleLarge" style={styles.cardTitle}>
@@ -179,9 +247,17 @@ const MileageScreen = () => {
                     <Text variant="bodyMedium">
                       {entry.fuelQuantity.toFixed(2)} L | {entry.distance.toFixed(1)} km
                     </Text>
-                    <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
-                      {entry.mileage.toFixed(2)} km/l
-                    </Text>
+                    <View style={styles.entryActions}>
+                      <Text variant="titleMedium" style={{ color: theme.colors.primary, marginRight: 8 }}>
+                        {entry.mileage.toFixed(2)} km/l
+                      </Text>
+                      <IconButton
+                        icon="dots-vertical"
+                        size={20}
+                        onPress={(e) => openMenu(entry.id, e)}
+                        iconColor={theme.colors.onSurface}
+                      />
+                    </View>
                   </View>
                 ))}
             </Card.Content>
@@ -247,6 +323,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  entryActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
