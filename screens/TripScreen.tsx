@@ -29,12 +29,12 @@ const TripScreen = () => {
   const [manualDistance, setManualDistance] = useState('');
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
-  
+
   // Refs for tracking
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const lastLocation = useRef<Location.LocationObject | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Request location permissions
   useEffect(() => {
     const requestPermissions = async () => {
@@ -47,13 +47,13 @@ const TripScreen = () => {
         );
         return;
       }
-      
+
       const backgroundPermission = await Location.requestBackgroundPermissionsAsync();
       setLocationPermission(status === 'granted');
     };
-    
+
     requestPermissions();
-    
+
     return () => {
       // Clean up on unmount
       if (locationSubscription.current) {
@@ -64,7 +64,7 @@ const TripScreen = () => {
       }
     };
   }, []);
-  
+
   // Start or resume tracking when activeTrip changes
   useEffect(() => {
     if (activeTrip && locationPermission) {
@@ -73,22 +73,22 @@ const TripScreen = () => {
       stopLocationTracking();
     }
   }, [activeTrip, locationPermission]);
-  
+
   const startLocationTracking = async () => {
     // Start location updates
     const locationOptions: Location.LocationOptions = {
-      accuracy: Location.Accuracy.BestForNavigation,
+      accuracy: Location.Accuracy.Highest,
       timeInterval: 5000, // Update every 5 seconds
       distanceInterval: 10, // Or every 10 meters
     };
-    
+
     locationSubscription.current = await Location.watchPositionAsync(
       locationOptions,
       (location) => {
         updateLocationData(location);
       }
     );
-    
+
     // Start a timer to update duration
     timerRef.current = setInterval(() => {
       if (activeTrip) {
@@ -99,44 +99,44 @@ const TripScreen = () => {
       }
     }, 1000);
   };
-  
+
   const stopLocationTracking = () => {
     if (locationSubscription.current) {
       locationSubscription.current.remove();
       locationSubscription.current = null;
     }
-    
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
   };
-  
+
   const updateLocationData = (location: Location.LocationObject) => {
     if (lastLocation.current) {
       // Calculate distance between last location and current location
       const lastCoords = lastLocation.current.coords;
       const currentCoords = location.coords;
-      
+
       const distanceInMeters = calculateDistance(
         lastCoords.latitude,
         lastCoords.longitude,
         currentCoords.latitude,
         currentCoords.longitude
       );
-      
+
       // Convert to kilometers and add to total
       const distanceInKm = distanceInMeters / 1000;
       setDistance(prev => prev + distanceInKm);
-      
+
       // Update speed (km/h)
       setSpeed(location.coords.speed ? location.coords.speed * 3.6 : 0);
     }
-    
+
     // Update last location
     lastLocation.current = location;
   };
-  
+
   // Haversine formula to calculate distance between two coordinates
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3; // Earth radius in meters
@@ -144,15 +144,15 @@ const TripScreen = () => {
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
     const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-    
+
     const a =
       Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
       Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
+
     return R * c; // Distance in meters
   };
-  
+
   const handleStartTrip = async () => {
     if (!locationPermission) {
       Alert.alert(
@@ -162,10 +162,10 @@ const TripScreen = () => {
       );
       return;
     }
-    
+
     await startTrip();
   };
-  
+
   const handleStopTrip = async () => {
     await stopTrip();
     // Reset state
@@ -174,29 +174,29 @@ const TripScreen = () => {
     setSpeed(0);
     lastLocation.current = null;
   };
-  
+
   const handleAddManualTrip = async () => {
     const distanceValue = parseFloat(manualDistance);
     if (isNaN(distanceValue) || distanceValue <= 0) {
       Alert.alert('Invalid Input', 'Please enter a valid distance.');
       return;
     }
-    
+
     await addManualTrip(distanceValue);
     setManualDistance('');
     setShowManualDialog(false);
   };
-  
+
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
-    
+
     return `${hours.toString().padStart(2, '0')}:${minutes
       .toString()
       .padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <Card style={styles.card}>
@@ -204,7 +204,7 @@ const TripScreen = () => {
           <Text variant="headlineMedium" style={styles.title}>
             {activeTrip ? 'Ride in Progress' : 'Start a New Ride'}
           </Text>
-          
+
           {activeTrip ? (
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
@@ -215,7 +215,7 @@ const TripScreen = () => {
                   Kilometers
                 </Text>
               </View>
-              
+
               <View style={styles.statItem}>
                 <Text variant="titleLarge" style={styles.statValue}>
                   {formatDuration(duration)}
@@ -224,7 +224,7 @@ const TripScreen = () => {
                   Duration
                 </Text>
               </View>
-              
+
               <View style={styles.statItem}>
                 <Text variant="titleLarge" style={styles.statValue}>
                   {speed.toFixed(1)}
@@ -241,7 +241,7 @@ const TripScreen = () => {
           )}
         </Card.Content>
       </Card>
-      
+
       <View style={styles.buttonContainer}>
         {activeTrip ? (
           <ActionButton
@@ -258,17 +258,17 @@ const TripScreen = () => {
               icon="play-circle"
               color={theme.colors.primary}
             />
-            
+
             <ActionButton
               label="Add Manual Entry"
               onPress={() => setShowManualDialog(true)}
               icon="pencil"
-              mode="outlined"
+
             />
           </>
         )}
       </View>
-      
+
       {/* Manual Entry Dialog */}
       <Portal>
         <Dialog
@@ -282,7 +282,7 @@ const TripScreen = () => {
               value={manualDistance}
               onChangeText={setManualDistance}
               keyboardType="numeric"
-              mode="outlined"
+
             />
           </Dialog.Content>
           <Dialog.Actions>
@@ -305,7 +305,7 @@ const TripScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 10,
   },
   card: {
     marginBottom: 16,

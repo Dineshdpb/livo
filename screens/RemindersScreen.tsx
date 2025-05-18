@@ -7,6 +7,7 @@ import { RootStackParamList, Reminder } from '../types';
 import { useAppContext } from '../context/AppContext';
 import ReminderCard from '../components/ReminderCard';
 import ActionButton from '../components/ActionButton';
+import { colors } from '../utils/theme';
 
 type RemindersScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Reminders'>;
 
@@ -15,7 +16,7 @@ const RemindersScreen = () => {
   const navigation = useNavigation<RemindersScreenNavigationProp>();
   const { reminders, toggleReminder, deleteReminder, userStats } = useAppContext();
   const [showDefaultDialog, setShowDefaultDialog] = useState(false);
-  
+
   const handleAddDefaultReminders = () => {
     // Navigate to add reminder screen with pre-filled values for oil change
     navigation.navigate('AddReminder', {
@@ -31,7 +32,7 @@ const RemindersScreen = () => {
     });
     setShowDefaultDialog(false);
   };
-  
+
   const handleAddServiceReminder = () => {
     // Navigate to add reminder screen with pre-filled values for service
     navigation.navigate('AddReminder', {
@@ -48,19 +49,19 @@ const RemindersScreen = () => {
     });
     setShowDefaultDialog(false);
   };
-  
+
   const handleEditReminder = (reminder: Reminder) => {
     navigation.navigate('AddReminder', { reminder });
   };
-  
+
   const handleDeleteReminder = (id: string) => {
     deleteReminder(id);
   };
-  
+
   // Group reminders by active status
   const activeReminders = reminders.filter(r => r.isActive);
   const inactiveReminders = reminders.filter(r => !r.isActive);
-  
+
   return (
     <SafeAreaView style={styles.container}>
       {reminders.length === 0 ? (
@@ -68,26 +69,26 @@ const RemindersScreen = () => {
           <Text style={styles.emptyText}>
             No reminders set up yet. Add default reminders or create custom ones.
           </Text>
-          
+
           <ActionButton
             label="Add Oil Change Reminder"
             onPress={handleAddDefaultReminders}
             icon="oil"
             style={styles.emptyButton}
           />
-          
+
           <ActionButton
             label="Add Service Reminder"
             onPress={handleAddServiceReminder}
             icon="wrench"
             style={styles.emptyButton}
           />
-          
+
           <ActionButton
             label="Add Custom Reminder"
             onPress={() => navigation.navigate('AddReminder', {})}
             icon="plus"
-            mode="outlined"
+
             style={styles.emptyButton}
           />
         </View>
@@ -98,7 +99,7 @@ const RemindersScreen = () => {
               <Text variant="titleLarge" style={styles.sectionTitle}>
                 Active Reminders
               </Text>
-              
+
               <FlatList
                 data={activeReminders}
                 keyExtractor={(item) => item.id}
@@ -114,13 +115,13 @@ const RemindersScreen = () => {
               />
             </View>
           )}
-          
+
           {inactiveReminders.length > 0 && (
             <View style={styles.section}>
               <Text variant="titleLarge" style={styles.sectionTitle}>
                 Inactive Reminders
               </Text>
-              
+
               <FlatList
                 data={inactiveReminders}
                 keyExtractor={(item) => item.id}
@@ -136,7 +137,7 @@ const RemindersScreen = () => {
               />
             </View>
           )}
-          
+
           <View style={styles.statsContainer}>
             <Text variant="bodyMedium" style={styles.statsText}>
               Current Total Distance: {userStats.totalDistance.toFixed(1)} km
@@ -144,7 +145,7 @@ const RemindersScreen = () => {
           </View>
         </>
       )}
-      
+
       <FAB
         icon="plus"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
@@ -158,6 +159,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: colors.background,
   },
   emptyContainer: {
     flex: 1,

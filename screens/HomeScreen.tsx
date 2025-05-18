@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, ScrollView, SafeAreaView } from 'react-native';
-import { Text, useTheme, Divider } from 'react-native-paper';
+import React from 'react';
+import { StyleSheet, View, ScrollView, SafeAreaView, Platform } from 'react-native';
+import { Text, useTheme, Surface, Divider } from 'react-native-paper';
+import { colors } from '../utils/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -13,6 +14,21 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'H
 const HomeScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
+
+  // Define custom styles that depend on theme
+  const customStyles = {
+    headerText: {
+      color: colors.primary,
+      fontWeight: '700' as const,
+    },
+    sectionTitle: {
+      color: colors.textPrimary,
+      fontWeight: '600' as const,
+      fontSize: 18,
+      marginBottom: 12,
+      marginLeft: 8,
+    }
+  };
   const { userStats, activeTrip, reminders } = useAppContext();
 
   // Find the next due reminder
@@ -44,43 +60,38 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text variant="headlineSmall" style={styles.sectionTitle}>
-          Today's Stats
-        </Text>
-        
+      {/* Custom header without navigation title to avoid duplication */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, customStyles.headerText]}>BikeMate</Text>
+      </View>
+
+      <ScrollView style={styles.scrollContent}>
+        <Text style={customStyles.sectionTitle}>Analytics</Text>
         <View style={styles.statsContainer}>
           <StatsCard
             title="Total Distance"
-            value={userStats.totalDistance.toFixed(1)}
-            unit="km"
+            value={`${userStats.totalDistance.toFixed(1)} km`}
             icon="map-marker-distance"
-            color={theme.colors.primary}
+            color={colors.primary}
           />
-          
           <StatsCard
             title="Today's Distance"
-            value={userStats.todayDistance.toFixed(1)}
-            unit="km"
+            value={`${userStats.todayDistance.toFixed(1)} km`}
             icon="bike"
-            color="#28A745"
+            color={colors.secondary}
           />
-          
           <StatsCard
             title="Last Mileage"
-            value={userStats.lastMileage ? userStats.lastMileage.toFixed(1) : "N/A"}
-            unit={userStats.lastMileage ? "km/l" : ""}
+            value={userStats.lastMileage ? `${userStats.lastMileage.toFixed(1)} km/l` : "N/A"}
             icon="gas-station"
-            color="#FFC107"
+            color={colors.accent}
           />
         </View>
 
         {nextReminder && (
           <>
             <Divider style={styles.divider} />
-            <Text variant="headlineSmall" style={styles.sectionTitle}>
-              Next Reminder
-            </Text>
+            <Text style={customStyles.sectionTitle}>Next Reminder</Text>
             <View style={styles.reminderContainer}>
               <Text variant="titleMedium" style={styles.reminderTitle}>
                 {nextReminder.title}
@@ -93,38 +104,35 @@ const HomeScreen = () => {
               <ActionButton
                 label="View All Reminders"
                 onPress={() => navigation.navigate('Reminders')}
-                mode="outlined"
+
                 icon="bell"
               />
             </View>
           </>
         )}
 
-        <Divider style={styles.divider} />
-        <Text variant="headlineSmall" style={styles.sectionTitle}>
-          Quick Actions
-        </Text>
-        
+        <Text style={customStyles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsContainer}>
           <ActionButton
             label={activeTrip ? "Continue Ride" : "Start Ride"}
-            onPress={() => navigation.navigate('Trip')}
             icon="bike"
-            color={theme.colors.primary}
+            onPress={() => navigation.navigate('Trip')}
+            mode="contained"
+            color={colors.primary}
           />
-          
           <ActionButton
             label="Add Fuel Log"
-            onPress={() => navigation.navigate('Mileage')}
             icon="gas-station"
-            color="#28A745"
+            onPress={() => navigation.navigate('Mileage')}
+            mode="contained"
+            color={colors.secondary}
           />
-          
           <ActionButton
             label="Manage Reminders"
+            icon="bell-outline"
             onPress={() => navigation.navigate('Reminders')}
-            icon="bell"
-            mode="outlined"
+            // 
+            color={colors.primary}
           />
         </View>
       </ScrollView>
@@ -135,16 +143,29 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background, // Consistent background color
+  },
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface, // Using theme surface color
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  headerTitle: {
+    fontSize: 28,
+    marginVertical: 8,
   },
   scrollContent: {
     padding: 16,
   },
-  sectionTitle: {
-    marginVertical: 12,
-    fontWeight: 'bold',
-  },
   statsContainer: {
-    marginBottom: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingHorizontal: 4,
   },
   divider: {
     marginVertical: 16,
@@ -161,7 +182,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   actionsContainer: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
 });
 

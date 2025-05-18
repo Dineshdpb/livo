@@ -31,7 +31,10 @@ export default function Navigation() {
         <Stack.Screen 
           name="Home" 
           component={HomeScreen} 
-          options={{ title: 'BikeMate' }} 
+          options={{ 
+            title: 'BikeMate',
+            headerShown: false // Hide the default header to avoid duplication
+          }} 
         />
         <Stack.Screen 
           name="Trip" 

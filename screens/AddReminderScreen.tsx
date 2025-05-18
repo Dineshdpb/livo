@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Reminder } from '../types';
 import { useAppContext } from '../context/AppContext';
 import ActionButton from '../components/ActionButton';
+import { colors } from '../utils/theme';
 
 type AddReminderRouteProp = RouteProp<RootStackParamList, 'AddReminder'>;
 type AddReminderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddReminder'>;
@@ -16,7 +17,7 @@ const AddReminderScreen = () => {
   const navigation = useNavigation<AddReminderNavigationProp>();
   const route = useRoute<AddReminderRouteProp>();
   const { addReminder, updateReminder } = useAppContext();
-  
+
   const initialReminder = route.params.reminder || {
     id: '',
     title: '',
@@ -26,7 +27,7 @@ const AddReminderScreen = () => {
     isActive: true,
     isCustom: true,
   };
-  
+
   const [title, setTitle] = useState(initialReminder.title);
   const [description, setDescription] = useState(initialReminder.description || '');
   const [triggerType, setTriggerType] = useState(initialReminder.triggerType);
@@ -39,30 +40,30 @@ const AddReminderScreen = () => {
   const [isActive, setIsActive] = useState(initialReminder.isActive);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  
+
   const isEditing = !!initialReminder.id;
-  
+
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    
+
     if (!title.trim()) {
       newErrors.title = 'Title is required';
     }
-    
+
     if (triggerType === 'distance' || triggerType === 'both') {
       const distance = parseFloat(triggerDistance);
       if (isNaN(distance) || distance <= 0) {
         newErrors.distance = 'Please enter a valid distance';
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSave = () => {
     if (!validateForm()) return;
-    
+
     const reminderData: Omit<Reminder, 'id'> = {
       title,
       description: description.trim() || undefined,
@@ -72,7 +73,7 @@ const AddReminderScreen = () => {
       isActive,
       isCustom: initialReminder.isCustom,
     };
-    
+
     if (isEditing) {
       updateReminder({
         ...reminderData,
@@ -81,17 +82,17 @@ const AddReminderScreen = () => {
     } else {
       addReminder(reminderData);
     }
-    
+
     navigation.goBack();
   };
-  
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
       setTriggerDate(selectedDate);
     }
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -99,27 +100,27 @@ const AddReminderScreen = () => {
           label="Title"
           value={title}
           onChangeText={setTitle}
-          mode="outlined"
+
           style={styles.input}
           error={!!errors.title}
         />
         {errors.title ? (
           <Text style={styles.errorText}>{errors.title}</Text>
         ) : null}
-        
+
         <TextInput
           label="Description (Optional)"
           value={description}
           onChangeText={setDescription}
-          mode="outlined"
+
           style={styles.input}
           multiline
         />
-        
+
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Reminder Type
         </Text>
-        
+
         <SegmentedButtons
           value={triggerType}
           onValueChange={(value) => setTriggerType(value as 'distance' | 'date' | 'both')}
@@ -130,7 +131,7 @@ const AddReminderScreen = () => {
           ]}
           style={styles.segmentedButtons}
         />
-        
+
         {(triggerType === 'distance' || triggerType === 'both') && (
           <View style={styles.inputGroup}>
             <TextInput
@@ -138,7 +139,7 @@ const AddReminderScreen = () => {
               value={triggerDistance}
               onChangeText={setTriggerDistance}
               keyboardType="numeric"
-              mode="outlined"
+
               style={styles.input}
               error={!!errors.distance}
             />
@@ -147,21 +148,21 @@ const AddReminderScreen = () => {
             ) : null}
           </View>
         )}
-        
+
         {(triggerType === 'date' || triggerType === 'both') && (
           <View style={styles.inputGroup}>
             <Text variant="bodyMedium" style={styles.dateLabel}>
               Trigger Date: {triggerDate.toLocaleDateString()}
             </Text>
-            
+
             <ActionButton
               label="Select Date"
               onPress={() => setShowDatePicker(true)}
-              mode="outlined"
+
               icon="calendar"
               style={styles.dateButton}
             />
-            
+
             {showDatePicker && (
               <DateTimePicker
                 value={triggerDate}
@@ -173,7 +174,7 @@ const AddReminderScreen = () => {
             )}
           </View>
         )}
-        
+
         <View style={styles.switchContainer}>
           <Text variant="bodyLarge">Active</Text>
           <Switch
@@ -182,15 +183,15 @@ const AddReminderScreen = () => {
             color={theme.colors.primary}
           />
         </View>
-        
+
         <View style={styles.buttonContainer}>
           <ActionButton
             label="Cancel"
             onPress={() => navigation.goBack()}
-            mode="outlined"
+
             style={styles.button}
           />
-          
+
           <ActionButton
             label={isEditing ? 'Update' : 'Save'}
             onPress={handleSave}
@@ -205,6 +206,7 @@ const AddReminderScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: 16,

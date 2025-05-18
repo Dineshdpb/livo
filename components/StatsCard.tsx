@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors } from '../utils/theme';
 
 interface StatsCardProps {
   title: string;
@@ -11,32 +12,46 @@ interface StatsCardProps {
   color?: string;
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ 
-  title, 
-  value, 
-  unit, 
-  icon, 
-  color 
+const StatsCard: React.FC<StatsCardProps> = ({
+  title,
+  value,
+  unit,
+  icon,
+  color
 }) => {
   const theme = useTheme();
-  
+
   return (
     <Card style={styles.card}>
       <Card.Content style={styles.content}>
         <View style={styles.iconContainer}>
-          <MaterialCommunityIcons 
-            name={icon} 
-            size={32} 
-            color={color || theme.colors.primary} 
+          <MaterialCommunityIcons
+            name={icon}
+            size={32}
+            color={color || theme.colors.primary}
           />
         </View>
         <View style={styles.textContainer}>
-          <Text variant="titleMedium" style={styles.title}>{title}</Text>
+          <Text
+            variant="titleMedium"
+            style={[styles.title, { color: colors.textSecondary }]}
+          >
+            {title}
+          </Text>
           <View style={styles.valueContainer}>
-            <Text variant="headlineMedium" style={styles.value}>
-              {value}
+            <Text
+              variant="headlineMedium"
+              style={[styles.value, { color: colors.textPrimary }]}
+            >
+              {typeof value === 'string' ? value.split(' ')[0] : value}
             </Text>
-            {unit && <Text variant="bodyMedium" style={styles.unit}>{unit}</Text>}
+            {unit ? (
+              <Text variant="bodyMedium" style={[styles.unit, { color: colors.textSecondary }]}>{unit}</Text>
+            ) : typeof value === 'string' && value.includes(' ') ? (
+              <Text variant="bodyMedium" style={[styles.unit, { color: colors.textSecondary }]}>
+                {value.split(' ').slice(1).join(' ')}
+              </Text>
+            ) : null}
           </View>
         </View>
       </Card.Content>
@@ -47,33 +62,45 @@ const StatsCard: React.FC<StatsCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     marginVertical: 8,
+    marginHorizontal: 4,
     elevation: 2,
     borderRadius: 12,
+    backgroundColor: colors.card,
+    // Add width to ensure cards don't stretch or shrink too much
+    width: '31%',  // Slightly less than 1/3 to account for margins
   },
   content: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   iconContainer: {
-    marginRight: 16,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+    padding: 8,
+    borderRadius: 8,
   },
   textContainer: {
-    flex: 1,
+    width: '100%',
+    alignItems: 'center',
   },
   title: {
-    opacity: 0.8,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 4,
   },
   valueContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    justifyContent: 'center',
   },
   value: {
     fontWeight: 'bold',
+    fontSize: 18,
   },
   unit: {
     marginLeft: 4,
-    opacity: 0.7,
+    fontSize: 12,
   },
 });
 

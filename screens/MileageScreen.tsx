@@ -91,7 +91,7 @@ const MileageScreen = () => {
               value={fuelQuantity}
               onChangeText={setFuelQuantity}
               keyboardType="numeric"
-              mode="outlined"
+
               style={styles.input}
               error={!!error && error.includes('fuel')}
             />
@@ -101,7 +101,7 @@ const MileageScreen = () => {
               value={distance}
               onChangeText={setDistance}
               keyboardType="numeric"
-              mode="outlined"
+
               style={styles.input}
               error={!!error && error.includes('distance')}
             />
